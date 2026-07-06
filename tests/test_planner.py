@@ -73,7 +73,9 @@ def test_review_markers_match_on_word_boundaries_not_substrings():
     assert _is_review_item({"title": "Add preview mode for streaming export"}) is False
     assert _is_review_item({"title": "Plan the emergency data migration"}) is False
     assert _is_review_item({"title": "Review and merge PR: Add streaming export"}) is True
-    assert _is_review_item({"title": "Merged the release branch"}) is True
+    # Past-tense "merged" is not a review action; only imperative "merge" counts.
+    assert _is_review_item({"title": "Merged the release branch"}) is False
+    assert _is_review_item({"title": "Merge the release branch"}) is True
     assert _is_review_item({"kind": "triage", "title": "anything"}) is True
 
 
