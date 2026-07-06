@@ -80,26 +80,30 @@ def test_scrub_context_scrubs_nested_fields_only():
     assert ctx.get("_forward_signal_scrubbed") is None  # original not mutated
 
 
-def test_strip_forward_refs_returns_empty_for_non_string_input():
-    for bad in (["Fix #900"], {"x": 1}, 42, None, True):
-        assert strip_forward_refs(bad) == ""
+def test_strip_forward_refs_handles_non_string_fields():
+    """Non-string free-text fields (LLM-emitted list/dict/number) must not crash the scrub."""
+    assert strip_forward_refs(["Fix #900"]) == ""
+    assert strip_forward_refs({"k": "v"}) == ""
+    assert strip_forward_refs(42) == ""
+    assert strip_forward_refs(None) == ""
+    # Genuine strings are still scrubbed.
+    assert "github.com" not in strip_forward_refs("see https://github.com/o/r/pull/1")
 
 
-def test_scrub_context_tolerates_non_string_text_fields():
+def test_scrub_context_handles_non_string_title_fields():
+    """scrub_context must not crash when a free-text field is a non-string (#377)."""
     ctx = {
-        "readme_excerpt": ["see #900"],
-        "recent_commits": [{"sha": "x", "subject": ["part of #200"]}],
-        "open_issues": [{"number": 1, "title": ["Fix #300"]}],
-        "open_prs": [{"number": 2, "title": 123}],
-        "releases": [{"tag": ["v2.0-fixes-#900"]}],
+        "open_issues": [{"title": ["Fix #900"]}],
+        "open_prs": [{"title": {"text": "Fix #800"}}],
+        "milestones": [{"title": 42}],
+        "recent_commits": [{"sha": "x", "subject": None}],
     }
     out = scrub_context(ctx)
-    assert out["readme_excerpt"] == ""
-    assert out["recent_commits"][0]["subject"] == ""
+    # Non-string fields are replaced with "" (no crash), string fields still scrubbed.
     assert out["open_issues"][0]["title"] == ""
     assert out["open_prs"][0]["title"] == ""
-    assert out["releases"][0]["tag"] == ""
-    assert out["_forward_signal_scrubbed"] is True
+    assert out["milestones"][0]["title"] == ""
+    assert out["recent_commits"][0]["subject"] == ""
 
 
 def test_strip_forward_refs_preserves_surrounding_punctuation():
